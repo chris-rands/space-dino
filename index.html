@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Dino v3.0</title>
+    <title>Space Dino v4.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
@@ -11,8 +11,8 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #0f172a; /* Slate 900 */
-            font-family: 'Orbitron', sans-serif; /* Sci-fi font */
+            background-color: #0f172a;
+            font-family: 'Orbitron', sans-serif;
             touch-action: none;
         }
 
@@ -21,20 +21,17 @@
         .game-text-shadow { text-shadow: 0px 0px 10px rgba(6, 182, 212, 0.8); }
         .hazard-text-shadow { text-shadow: 0px 0px 10px rgba(239, 68, 68, 0.8); }
         .void-text-shadow { text-shadow: 0px 0px 15px #a855f7; }
+        .rescue-text-shadow { text-shadow: 0px 0px 10px #22c55e; }
         
-        /* Space Alert Animation */
-        @keyframes pulse-red {
-            0% { opacity: 0; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.1); }
-            100% { opacity: 0; transform: scale(1.5); }
+        @keyframes pulse-alert {
+            0% { opacity: 0; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0; transform: scale(1.1); }
         }
-        .space-alert {
-            animation: pulse-red 2s infinite;
-        }
+        .space-alert { animation: pulse-alert 2.5s infinite; }
 
-        /* Neon Button Style */
         .neon-btn {
-            background: linear-gradient(45deg, #7c3aed, #06b6d4); /* Purple to Cyan */
+            background: linear-gradient(45deg, #7c3aed, #06b6d4);
             border: 2px solid #a78bfa;
             box-shadow: 0 0 15px #7c3aed;
         }
@@ -59,19 +56,19 @@
             <div class="text-right">
                 <div id="score-display" class="text-5xl md:text-6xl text-white game-text-shadow">0<span class="text-2xl">m</span></div>
                 <div id="speed-display" class="text-cyan-400 text-sm font-mono">0 km/h</div>
+                <div id="rider-status" class="text-green-400 text-xs font-bold tracking-widest mt-1">CO-PILOT: ACTIVE</div>
             </div>
         </div>
 
         <!-- Space Warning -->
         <div id="space-warning" class="absolute top-1/4 left-0 w-full text-center hidden">
-            <div id="alert-title" class="text-4xl text-red-500 hazard-text-shadow space-alert font-bold">ASTEROID BELT</div>
-            <div id="alert-subtitle" class="text-white text-sm mt-2 tracking-widest">AVOID DEBRIS // GRAVITY NORMAL</div>
+            <div id="alert-title" class="text-4xl text-red-500 hazard-text-shadow space-alert font-bold">WARNING</div>
+            <div id="alert-subtitle" class="text-white text-sm mt-2 tracking-widest">HAZARD DETECTED</div>
         </div>
 
         <!-- Screens -->
         <div id="message-area" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full px-4 transition-opacity duration-500">
             <div id="start-screen" class="pointer-events-auto bg-slate-900/80 p-8 rounded-xl border border-purple-500/50 backdrop-blur-sm">
-                <!-- Dino Icon SVG -->
                 <div class="mb-6 animate-pulse">
                      <svg class="w-24 h-24 mx-auto text-purple-500" viewBox="0 0 100 100" fill="currentColor">
                         <path d="M60 15 C 65 15, 75 20, 75 30 C 75 35, 70 40, 65 40 L 60 40 L 60 50 L 70 50 C 75 50, 80 55, 80 60 C 80 70, 70 80, 50 80 C 40 80, 30 75, 25 60 C 20 60, 15 65, 15 70 L 15 50 C 15 35, 30 25, 45 20 L 45 15 Z" />
@@ -79,18 +76,18 @@
                     </svg>
                 </div>
                 <h2 class="text-3xl text-white mb-2 font-bold tracking-widest">INITIATE LAUNCH</h2>
-                <p class="text-purple-200 text-sm mb-8 font-mono">TAP & HOLD TO GRAPPLE</p>
+                <p class="text-purple-200 text-sm mb-8 font-mono">TAP TO GRAPPLE // PROTECT THE PILOT</p>
                 <button id="start-btn" class="neon-btn text-white text-xl py-3 px-12 rounded-none transform skew-x-[-10deg] transition">
                     START MISSION
                 </button>
             </div>
 
             <div id="game-over-screen" class="hidden pointer-events-auto bg-slate-900/90 p-8 rounded-xl border border-red-500/50 backdrop-blur-sm">
-                <h2 class="text-4xl text-red-500 mb-2 hazard-text-shadow font-bold">CRITICAL FAILURE</h2>
-                <p id="death-reason" class="text-red-200 text-lg mb-2 font-mono">HULL INTEGRITY: 0%</p>
+                <h2 class="text-4xl text-red-500 mb-2 hazard-text-shadow font-bold">MISSION FAILED</h2>
+                <p id="death-reason" class="text-red-200 text-lg mb-2 font-mono">SIGNAL LOST</p>
                 <p id="final-score" class="text-white text-2xl mb-6">DISTANCE: 0m</p>
                 <button id="restart-btn" class="neon-btn text-white text-xl py-3 px-12 rounded-none transform skew-x-[-10deg] transition">
-                    REBOOT SYSTEM
+                    RETRY
                 </button>
             </div>
         </div>
@@ -100,10 +97,8 @@
 
     <script>
         /**
-         * SPACE DINO v3.0: EVENT HORIZON
-         * - New Mechanic: Black Holes (Score > 5000).
-         * - Physics: Radial gravity wells that pull Dino in.
-         * - Slingshot Effect: Passing near a black hole boosts speed.
+         * SPACE DINO v4.2
+         * - Updated Rider Visuals: Now a distinct curly-haired silhouette with outline.
          */
 
         const CONFIG = {
@@ -117,7 +112,8 @@
             dashForce: { x: 15, y: -8 },
             spaceThreshold: 10000, 
             starThreshold: 20000,
-            blackHoleThreshold: 50000, // 5000m
+            blackHoleThreshold: 50000,
+            rescueDistance: 3000, 
         };
 
         const AudioSys = {
@@ -147,7 +143,9 @@
             playDash: function() { this.playTone(200, 'sawtooth', 0.3, 0.1, 800); }, 
             playCrash: function() { this.playTone(100, 'sawtooth', 0.5, 0.3, 20); }, 
             playSpaceEnter: function() { this.playTone(600, 'sine', 1.5, 0.05, 1200); },
-            playVoidHum: function() { this.playTone(50, 'sine', 1.0, 0.2, 30); } // Black hole sound
+            playVoidHum: function() { this.playTone(50, 'sine', 1.0, 0.2, 30); },
+            playEject: function() { this.playTone(1000, 'sawtooth', 0.4, 0.2, 100); }, 
+            playRescue: function() { this.playTone(400, 'sine', 0.2, 0.1, 800); } 
         };
 
         class Camera {
@@ -172,14 +170,15 @@
                 this.x = x;
                 this.y = y;
                 this.type = type; 
+                this.active = true; 
+                
                 this.radius = 10;
                 this.angle = Math.random() * Math.PI;
                 this.rotationSpeed = (Math.random() - 0.5) * 0.05;
                 
-                // Asteroid Setup
-                this.points = [];
                 if (type === 'asteroid') {
                     this.radius = 20 + Math.random() * 20;
+                    this.points = [];
                     const vertices = 7;
                     for(let i=0; i<vertices; i++) {
                         const theta = (i / vertices) * Math.PI * 2;
@@ -188,7 +187,6 @@
                     }
                 }
 
-                // Comet/Star Setup
                 if (type === 'comet') {
                     this.vx = -10 - Math.random() * 5; 
                     this.vy = (Math.random() - 0.5) * 4;
@@ -202,12 +200,15 @@
                     this.trail = [];
                 }
 
-                // Black Hole Setup
                 if (type === 'blackHole') {
-                    this.radius = 35; // Event Horizon
-                    this.gravityRadius = 400; // Pull Range
+                    this.radius = 35; 
+                    this.gravityRadius = 400; 
                     this.swirlAngle = 0;
-                    this.strength = 1.8; // Gravity Strength
+                    this.strength = 1.8; 
+                }
+
+                if (type === 'rescuePod') {
+                    this.radius = 25;
                 }
             }
 
@@ -228,34 +229,33 @@
                 if (this.type === 'blackHole') {
                     this.swirlAngle += 0.1;
                 }
+                
+                if (this.type === 'rescuePod') {
+                    this.y += Math.sin(Date.now() / 300) * 0.5; // Hover
+                }
             }
 
             draw(ctx) {
+                if (!this.active && this.type !== 'rescuePod') return; 
+
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
                 if (this.type === 'blackHole') {
-                    // Accretion Disk (Swirling)
                     ctx.rotate(this.swirlAngle);
                     const grad = ctx.createRadialGradient(0, 0, this.radius, 0, 0, this.radius * 2.5);
-                    grad.addColorStop(0, '#7c3aed'); // Purple
-                    grad.addColorStop(0.5, '#06b6d4'); // Cyan
+                    grad.addColorStop(0, '#7c3aed'); 
+                    grad.addColorStop(0.5, '#06b6d4'); 
                     grad.addColorStop(1, 'rgba(0,0,0,0)');
-                    
                     ctx.fillStyle = grad;
-                    
-                    // Draw swirl arms
                     for(let i=0; i<3; i++) {
                         ctx.rotate((Math.PI * 2) / 3);
                         ctx.beginPath();
                         ctx.ellipse(0, 0, this.radius * 2.5, this.radius * 0.8, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
-
-                    // Event Horizon (Black Void)
-                    ctx.resetTransform(); // Reset rotation for center
+                    ctx.resetTransform(); 
                     ctx.translate(this.x, this.y);
-                    
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI*2);
                     ctx.fillStyle = '#000';
@@ -263,11 +263,26 @@
                     ctx.shadowColor = '#a78bfa';
                     ctx.fill();
                     ctx.shadowBlur = 0;
-
-                    // Photon Ring (White outline)
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 1;
                     ctx.stroke();
+
+                } else if (this.type === 'rescuePod') {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; 
+                    ctx.fill();
+                    ctx.strokeStyle = '#22c55e';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(0, -5, 4, 0, Math.PI*2); 
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(0, 5, 5, 8, 0, 0, Math.PI*2); 
+                    ctx.fill();
 
                 } else {
                     ctx.rotate(this.angle);
@@ -340,16 +355,20 @@
                 this.grapplePoint = null;
                 this.ropeLength = 0;
                 this.dashTimer = 0;
+                
+                this.hasRider = true;
+                this.lostRiderAt = 0;
+                this.invulnerableTimer = 0;
                 this.spaghettified = false;
             }
 
             update(gameWidth, hazards) {
-                // Base Physics
                 this.vel.y += CONFIG.gravity;
                 this.vel.x *= CONFIG.airDrag;
                 this.vel.y *= CONFIG.airDrag;
 
-                // Black Hole Gravity Physics
+                if (this.invulnerableTimer > 0) this.invulnerableTimer--;
+
                 if (hazards) {
                     for(let h of hazards) {
                         if (h.type === 'blackHole') {
@@ -358,11 +377,8 @@
                             const dist = Math.sqrt(dx*dx + dy*dy);
 
                             if (dist < h.gravityRadius) {
-                                // Calculate Pull Force (Inverse Square Law simplified)
-                                // We clamp min distance to avoid infinity
                                 const force = h.strength * 2000 / (dist * dist + 100); 
                                 const angle = Math.atan2(dy, dx);
-                                
                                 this.vel.x += Math.cos(angle) * force;
                                 this.vel.y += Math.sin(angle) * force;
                             }
@@ -370,7 +386,6 @@
                     }
                 }
 
-                // Rope Physics
                 if (this.grapplePoint) {
                     const dx = this.pos.x - this.grapplePoint.x;
                     const dy = this.pos.y - this.grapplePoint.y;
@@ -379,16 +394,13 @@
                     if (dist > this.ropeLength) {
                         const angle = Math.atan2(dy, dx);
                         const diff = dist - this.ropeLength;
-                        
                         this.pos.x -= Math.cos(angle) * diff * 0.5;
                         this.pos.y -= Math.sin(angle) * diff * 0.5;
-
                         this.vel.x -= Math.cos(angle) * CONFIG.swingForce;
                         this.vel.y -= Math.sin(angle) * CONFIG.swingForce;
                         
-                        // Speed Limit
                         const speed = Math.sqrt(this.vel.x**2 + this.vel.y**2);
-                        if (speed > 40) { // Higher speed cap for slingshots
+                        if (speed > 40) {
                             const ratio = 40 / speed;
                             this.vel.x *= ratio;
                             this.vel.y *= ratio;
@@ -401,7 +413,6 @@
 
                 if (this.dashTimer > 0) this.dashTimer--;
 
-                // Rotation
                 if (this.grapplePoint) {
                     const dx = this.grapplePoint.x - this.pos.x;
                     const dy = this.grapplePoint.y - this.pos.y;
@@ -417,25 +428,21 @@
                 if (this.grapplePoint) return; 
                 let bestAnchor = null;
                 let minDist = Infinity;
-
                 for (let anchor of anchors) {
                     if (anchor.x < this.pos.x - 50) continue;
                     const dx = anchor.x - this.pos.x;
                     const dy = anchor.y - this.pos.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
-
                     if (dist < CONFIG.maxRopeLength && dist > CONFIG.minRopeLength) {
                         let score = dist;
                         if (anchor.x > this.pos.x) score -= 50;
                         if (anchor.y < this.pos.y) score -= 100;
-                        
                         if (score < minDist) {
                             minDist = score;
                             bestAnchor = anchor;
                         }
                     }
                 }
-
                 if (bestAnchor) {
                     this.grapplePoint = bestAnchor;
                     const dx = this.pos.x - bestAnchor.x;
@@ -462,12 +469,28 @@
                 return false;
             }
 
+            loseRider(currentScore) {
+                this.hasRider = false;
+                this.lostRiderAt = currentScore;
+                this.invulnerableTimer = 120; // 2 seconds invulnerability
+                AudioSys.playEject();
+            }
+
+            recoverRider() {
+                this.hasRider = true;
+                AudioSys.playRescue();
+            }
+
             draw(ctx) {
                 if (this.spaghettified) return;
 
                 ctx.save();
                 ctx.translate(this.pos.x, this.pos.y);
                 ctx.rotate(this.angle);
+
+                if (this.invulnerableTimer > 0 && Math.floor(Date.now() / 50) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
 
                 // --- PURPLE CYBER-DINO ---
                 const dinoPurple = '#7c3aed'; 
@@ -535,7 +558,10 @@
                 ctx.fillStyle = dinoPurple;
                 ctx.fill();
 
-                // Dash
+                if (this.hasRider) {
+                    this.drawRider(ctx);
+                }
+
                 if (this.dashTimer > CONFIG.dashCooldown - 10) {
                      ctx.beginPath();
                      ctx.moveTo(-7, 12);
@@ -546,6 +572,41 @@
                 }
 
                 ctx.restore();
+            }
+
+            drawRider(ctx) {
+                // Adjusted position: further back and slightly up
+                const rx = -12;
+                const ry = -25;
+                const bounce = Math.sin(Date.now() / 150);
+
+                ctx.fillStyle = '#000000'; // Simple Black Silhouette
+
+                // -- Hair (Curly Mass) - Larger and more voluminous --
+                ctx.beginPath();
+                // Top volume
+                ctx.arc(rx - 2, ry - 5 + bounce, 7, 0, Math.PI * 2);
+                // Back/Side curls falling down
+                ctx.arc(rx - 6, ry + bounce, 6, 0, Math.PI * 2);
+                ctx.arc(rx - 5, ry + 7 + bounce, 6, 0, Math.PI * 2);
+                ctx.arc(rx, ry + 6 + bounce, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // -- Body - Larger and more childlike proportions --
+                ctx.beginPath();
+                // Shorter, wider body for a child
+                ctx.ellipse(rx + 2, ry + 14 + bounce, 7, 10, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // -- Head - Larger relative to body for child proportions --
+                ctx.beginPath();
+                ctx.arc(rx + 2, ry - 1 + bounce, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // -- Arm (Holding on) - Larger --
+                ctx.beginPath();
+                ctx.ellipse(rx + 8, ry + 9 + bounce, 3, 8, 0.6, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
@@ -560,6 +621,8 @@
                 this.uiSpeed = document.getElementById('speed-display');
                 this.uiBest = document.getElementById('best-score');
                 this.uiZone = document.getElementById('zone-display');
+                this.uiRider = document.getElementById('rider-status');
+                
                 this.uiSpaceAlert = document.getElementById('space-warning');
                 this.uiAlertTitle = document.getElementById('alert-title');
                 this.uiAlertSub = document.getElementById('alert-subtitle');
@@ -584,6 +647,7 @@
                 this.lastTime = 0;
                 this.inputState = { holding: false, lastTap: 0 };
                 this.alertState = 0; 
+                this.rescueSpawned = false;
                 
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
@@ -661,7 +725,13 @@
                 this.score = 0;
                 this.isRunning = true;
                 this.alertState = 0;
+                this.rescueSpawned = false;
+                
                 this.uiSpaceAlert.classList.add('hidden');
+                if (this.uiRider) {
+                    this.uiRider.innerText = "CO-PILOT: ACTIVE";
+                    this.uiRider.className = "text-green-400 text-xs font-bold tracking-widest mt-1";
+                }
                 
                 this.generateLevel(0);
                 this.screens.container.classList.add('opacity-0', 'pointer-events-none');
@@ -704,7 +774,6 @@
                     while (currentX < lookAhead) {
                         const spacing = 120 + Math.random() * 150;
                         currentX += spacing;
-                        
                         const wave = Math.sin(currentX / 900) * 220; 
                         const noise = (Math.random() - 0.5) * 150;
                         let y = wave + noise;
@@ -713,7 +782,13 @@
 
                         this.anchors.push({ x: currentX, y: y, active: true });
 
-                        // Level 1: Space Debris (1000m+)
+                        if (!this.dino.hasRider && !this.rescueSpawned) {
+                            if (this.score - this.dino.lostRiderAt > CONFIG.rescueDistance / 10) {
+                                this.hazards.push(new Hazard(currentX + 200, y - 50, 'rescuePod'));
+                                this.rescueSpawned = true; 
+                            }
+                        }
+
                         if (currentX > CONFIG.spaceThreshold) {
                             if (Math.random() < 0.2) {
                                 const hazX = currentX + spacing/2;
@@ -724,18 +799,13 @@
                                 this.hazards.push(new Hazard(currentX + 800, y - 200, 'comet'));
                             }
                         }
-
-                        // Level 2: Shooting Stars (2000m+)
                         if (currentX > CONFIG.starThreshold) {
                             if (Math.random() < 0.04) { 
                                 this.hazards.push(new Hazard(currentX + 1000, y - 400, 'shootingStar'));
                             }
                         }
-
-                        // Level 3: Black Holes (5000m+)
                         if (currentX > CONFIG.blackHoleThreshold) {
-                            if (Math.random() < 0.01) { // Very Rare
-                                // Spawn roughly in path
+                            if (Math.random() < 0.01) { 
                                 this.hazards.push(new Hazard(currentX + 600, y + (Math.random()-0.5)*100, 'blackHole'));
                             }
                         }
@@ -750,34 +820,60 @@
             }
 
             checkCollisions() {
-                for (let h of this.hazards) {
+                for (let i = this.hazards.length - 1; i >= 0; i--) {
+                    let h = this.hazards[i];
+                    if (!h.active) continue;
+
                     const dx = this.dino.pos.x - h.x;
                     const dy = this.dino.pos.y - h.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
                     
                     if (h.type === 'blackHole') {
-                        // Event Horizon Check
                         if (dist < h.radius) {
                             this.dino.spaghettified = true;
                             this.gameOver('spaghettified');
                             return;
                         }
+                    } else if (h.type === 'rescuePod') {
+                        if (dist < this.dino.radius + h.radius + 10) {
+                            this.dino.recoverRider();
+                            this.hazards.splice(i, 1);
+                            this.rescueSpawned = false;
+                            
+                            if (this.uiRider) {
+                                this.uiRider.innerText = "CO-PILOT: ACTIVE";
+                                this.uiRider.className = "text-green-400 text-xs font-bold tracking-widest mt-1";
+                            }
+                            this.triggerAlert("PILOT RECOVERED", "SHIELDS RESTORED", "text-green-500", "rescue-text-shadow");
+                        }
                     } else {
-                        // Standard Collision
                         if (dist < this.dino.radius + h.radius) {
-                            this.gameOver('crash');
-                            return;
+                            if (this.dino.invulnerableTimer > 0) return; 
+
+                            if (this.dino.hasRider) {
+                                this.dino.loseRider(this.score);
+                                h.active = false; 
+                                
+                                if (this.uiRider) {
+                                    this.uiRider.innerText = "CO-PILOT: LOST";
+                                    this.uiRider.className = "text-red-500 text-xs font-bold tracking-widest mt-1 blink";
+                                }
+                                this.triggerAlert("PILOT EJECTED", "SURVIVE FOR RESCUE", "text-red-500", "hazard-text-shadow");
+                            } else {
+                                this.gameOver('crash');
+                                return;
+                            }
                         }
                     }
                 }
             }
 
             triggerAlert(title, subtitle, colorClass, shadowClass) {
+                if (!this.uiAlertTitle || !this.uiAlertSub) return;
                 this.uiAlertTitle.innerText = title;
                 this.uiAlertTitle.className = `text-4xl ${colorClass} ${shadowClass} space-alert font-bold`;
                 this.uiAlertSub.innerText = subtitle;
                 this.uiSpaceAlert.classList.remove('hidden');
-                AudioSys.playSpaceEnter();
                 setTimeout(() => this.uiSpaceAlert.classList.add('hidden'), 3000);
             }
 
@@ -793,29 +889,36 @@
 
                 const dist = Math.floor(this.dino.pos.x / 10);
                 if (dist > this.score) this.score = dist;
-                this.uiScore.innerHTML = `${Math.floor(this.score)}<span class="text-2xl">m</span>`;
+                if (this.uiScore) this.uiScore.innerHTML = `${Math.floor(this.score)}<span class="text-2xl">m</span>`;
                 
                 const speed = Math.sqrt(this.dino.vel.x**2 + this.dino.vel.y**2) * 3.6; 
-                this.uiSpeed.innerText = `${Math.floor(speed)} km/h`;
+                if (this.uiSpeed) this.uiSpeed.innerText = `${Math.floor(speed)} km/h`;
                 
-                // UI Zone Logic
                 if (dist >= 1000 && dist < 2000) {
-                    this.uiZone.innerText = "ASTEROID BELT";
-                    this.uiZone.className = "text-xs text-red-500 mt-1 uppercase tracking-widest font-bold";
+                    if (this.uiZone) {
+                        this.uiZone.innerText = "ASTEROID BELT";
+                        this.uiZone.className = "text-xs text-red-500 mt-1 uppercase tracking-widest font-bold";
+                    }
                     if (this.alertState === 0) {
                         this.alertState = 1;
                         this.triggerAlert("ASTEROID BELT", "AVOID DEBRIS", "text-red-500", "hazard-text-shadow");
+                        AudioSys.playSpaceEnter();
                     }
                 } else if (dist >= 2000 && dist < 5000) {
-                    this.uiZone.innerText = "METEOR SHOWER";
-                    this.uiZone.className = "text-xs text-white mt-1 uppercase tracking-widest font-bold";
+                    if (this.uiZone) {
+                        this.uiZone.innerText = "METEOR SHOWER";
+                        this.uiZone.className = "text-xs text-white mt-1 uppercase tracking-widest font-bold";
+                    }
                     if (this.alertState === 1) {
                         this.alertState = 2;
                         this.triggerAlert("METEOR SHOWER", "EXTREME VELOCITY HAZARDS", "text-white", "star-text-shadow");
+                        AudioSys.playSpaceEnter();
                     }
                 } else if (dist >= 5000) {
-                    this.uiZone.innerText = "EVENT HORIZON";
-                    this.uiZone.className = "text-xs text-purple-400 mt-1 uppercase tracking-widest font-bold";
+                    if (this.uiZone) {
+                        this.uiZone.innerText = "EVENT HORIZON";
+                        this.uiZone.className = "text-xs text-purple-400 mt-1 uppercase tracking-widest font-bold";
+                    }
                     if (this.alertState === 2) {
                         this.alertState = 3;
                         AudioSys.playVoidHum();
@@ -827,7 +930,6 @@
             }
 
             draw() {
-                // VISUALS: Deep Space BG
                 const dist = this.dino ? this.dino.pos.x : 0;
                 const transitionStart = 8000;
                 const transitionEnd = 12000;
@@ -840,7 +942,6 @@
                 this.ctx.fillStyle = `rgb(${r},${g},${b})`;
                 this.ctx.fillRect(0, 0, this.width, this.height);
 
-                // Grid Effect (Floor)
                 if (this.camera.y + this.height > 500) {
                     this.ctx.strokeStyle = `rgba(6, 182, 212, ${0.1 * (1-t)})`;
                     this.ctx.lineWidth = 1;
@@ -853,16 +954,13 @@
                     }
                 }
 
-                // Stars
                 this.ctx.fillStyle = '#FFF';
                 this.stars.forEach(star => {
                     const px = (star.x - this.camera.x * (0.1 * star.depth)) % this.width;
                     const py = (star.y - this.camera.y * (0.1 * star.depth)) % this.height;
                     const finalX = px < 0 ? px + this.width : px;
                     const finalY = py < 0 ? py + this.height : py;
-                    
-                    const twinkle = Math.random() > 0.9 ? 0.5 : 1;
-                    this.ctx.globalAlpha = star.alpha * twinkle;
+                    this.ctx.globalAlpha = star.alpha;
                     this.ctx.beginPath();
                     this.ctx.arc(finalX, finalY, star.size, 0, Math.PI*2);
                     this.ctx.fill();
@@ -872,14 +970,12 @@
                 this.ctx.save();
                 this.ctx.translate(-this.camera.x, -this.camera.y);
 
-                // Sort: Black holes back, asteroids middle, shooting stars front
                 this.hazards.sort((a,b) => {
-                    const order = { 'blackHole': 0, 'asteroid': 1, 'comet': 2, 'shootingStar': 3 };
+                    const order = { 'blackHole': 0, 'rescuePod': 1, 'asteroid': 2, 'comet': 3, 'shootingStar': 4 };
                     return order[a.type] - order[b.type];
                 });
                 this.hazards.forEach(h => h.draw(this.ctx));
 
-                // Laser Tether
                 if (this.dino && this.dino.grapplePoint) {
                     this.ctx.strokeStyle = '#06b6d4'; 
                     this.ctx.lineWidth = 2;
@@ -890,14 +986,12 @@
                     this.ctx.lineTo(this.dino.grapplePoint.x, this.dino.grapplePoint.y);
                     this.ctx.stroke();
                     this.ctx.shadowBlur = 0; 
-
                     this.ctx.fillStyle = '#fff';
                     this.ctx.beginPath();
                     this.ctx.arc(this.dino.grapplePoint.x, this.dino.grapplePoint.y, 6, 0, Math.PI*2);
                     this.ctx.fill();
                 }
 
-                // Anchors
                 this.anchors.forEach(a => {
                     const glowSize = 10 + Math.sin(Date.now()/200)*3;
                     const grad = this.ctx.createRadialGradient(a.x, a.y, 2, a.x, a.y, glowSize);
@@ -907,7 +1001,6 @@
                     this.ctx.beginPath();
                     this.ctx.arc(a.x, a.y, glowSize, 0, Math.PI*2);
                     this.ctx.fill();
-                    
                     this.ctx.fillStyle = '#cffafe';
                     this.ctx.beginPath();
                     this.ctx.arc(a.x, a.y, 3, 0, Math.PI*2);
