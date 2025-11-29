@@ -1,4 +1,4 @@
-# Space Dino v4.2
+# Space Dino v5.3
 
 A physics-based space grappling game featuring a cyber-dinosaur and co-pilot navigating through increasingly dangerous cosmic environments.
 
