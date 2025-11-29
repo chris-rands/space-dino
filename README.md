@@ -58,6 +58,20 @@ Simply open `index.html` in any modern web browser. No build process or dependen
 - Web Audio API for procedural sound generation
 - Orbitron Google Font for cyberpunk aesthetic
 
+## Bonus Level: Rainforest
+
+Fall from space early in your run (before 50m) and instead of game over, you'll crash into a mysterious **Rainforest biome**! This secret bonus level features:
+
+- **New environment**: Lush jungle with parallax trees and clouds
+- **Jungle grappling**: Swing on organic vines instead of laser tethers, latching onto tropical flowers
+- **Rainforest hazards**:
+  - **Poison Frogs**: Lime-green amphibians that hop unpredictably
+  - **Vipers**: Green snakes that slither through the canopy
+  - **Giant Sloths**: Massive obstacles that slowly swing from vines (appear after 1000m in the jungle)
+- **Themed aesthetics**: Yellow/green color scheme, jungle floor fog, and tropical ambiance
+
+The bonus level is a completely separate challenge with its own scoring system - see how far you can swing through the rainforest!
+
 ## Tips
 
 - **Protect your co-pilot**: Avoid hazards when possible - losing them makes the game much harder
@@ -66,3 +80,4 @@ Simply open `index.html` in any modern web browser. No build process or dependen
 - **Black hole strategy**: Gravity wells can slingshot you forward if you approach from the side
 - **Auto-rescue mechanic**: After losing your co-pilot, survive 300m to automatically get them back and restore your shield
 - **Invulnerability window**: After losing your co-pilot, you have 2 seconds to escape danger
+- **Find the bonus level**: Sometimes an early fall leads to unexpected discoveries...

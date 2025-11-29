@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Dino v4.3</title>
+    <title>Space Dino v5.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
@@ -22,6 +22,7 @@
         .hazard-text-shadow { text-shadow: 0px 0px 10px rgba(239, 68, 68, 0.8); }
         .void-text-shadow { text-shadow: 0px 0px 15px #a855f7; }
         .rescue-text-shadow { text-shadow: 0px 0px 10px #22c55e; }
+        .jungle-text-shadow { text-shadow: 0px 0px 10px #facc15; } /* Yellow for Jungle */
         
         @keyframes pulse-alert {
             0% { opacity: 0; transform: scale(0.9); }
@@ -97,9 +98,8 @@
 
     <script>
         /**
-         * SPACE DINO v4.3
-         * - Auto-Rescue: Pilot returns automatically after surviving 300m.
-         * - Removed Rescue Pod item spawning.
+         * SPACE DINO v5.3 (Sloth Update)
+         * - Added Large Sloth hazards in Rainforest mode after 1000 score.
          */
 
         const CONFIG = {
@@ -114,7 +114,9 @@
             spaceThreshold: 10000, 
             starThreshold: 20000,
             blackHoleThreshold: 50000,
-            rescueDistance: 300, // Meters to survive for auto-return
+            rescueDistance: 300,
+            bonusLevelThreshold: 50, 
+            slothThreshold: 1000, // Score in Jungle to see sloths
         };
 
         const AudioSys = {
@@ -146,7 +148,8 @@
             playSpaceEnter: function() { this.playTone(600, 'sine', 1.5, 0.05, 1200); },
             playVoidHum: function() { this.playTone(50, 'sine', 1.0, 0.2, 30); },
             playEject: function() { this.playTone(1000, 'sawtooth', 0.4, 0.2, 100); }, 
-            playRescue: function() { this.playTone(400, 'sine', 0.2, 0.1, 800); } 
+            playRescue: function() { this.playTone(400, 'sine', 0.2, 0.1, 800); },
+            playJungleEnter: function() { this.playTone(300, 'triangle', 2.0, 0.1, 500); } 
         };
 
         class Camera {
@@ -177,6 +180,7 @@
                 this.angle = Math.random() * Math.PI;
                 this.rotationSpeed = (Math.random() - 0.5) * 0.05;
                 
+                // --- Space Hazards ---
                 if (type === 'asteroid') {
                     this.radius = 20 + Math.random() * 20;
                     this.points = [];
@@ -207,6 +211,29 @@
                     this.swirlAngle = 0;
                     this.strength = 1.8; 
                 }
+
+                if (type === 'rescuePod') {
+                    this.radius = 25;
+                }
+
+                // --- Jungle Hazards ---
+                if (type === 'frog') {
+                    this.radius = 15;
+                    this.baseY = y;
+                    this.hopOffset = Math.random() * 1000;
+                }
+
+                if (type === 'snake') {
+                    this.radius = 12;
+                    this.vx = -4 - Math.random() * 2; // Slower than comets
+                    this.snakeWiggle = 0;
+                }
+
+                if (type === 'sloth') {
+                    this.radius = 35; // Big obstacle
+                    this.vx = -0.5; // Very slow
+                    this.swingAngle = 0;
+                }
             }
 
             update() {
@@ -226,10 +253,33 @@
                 if (this.type === 'blackHole') {
                     this.swirlAngle += 0.1;
                 }
+                
+                if (this.type === 'rescuePod') {
+                    this.y += Math.sin(Date.now() / 300) * 0.5; 
+                }
+
+                if (this.type === 'frog') {
+                    // Hop physics (Sine wave abs)
+                    const time = Date.now() + this.hopOffset;
+                    const hopHeight = 80;
+                    const hopSpeed = 0.005;
+                    this.y = this.baseY - Math.abs(Math.sin(time * hopSpeed)) * hopHeight;
+                }
+
+                if (this.type === 'snake') {
+                    this.x += this.vx;
+                    this.snakeWiggle += 0.2;
+                    this.y += Math.sin(this.snakeWiggle) * 2; // Slither motion
+                }
+
+                if (this.type === 'sloth') {
+                    this.x += this.vx;
+                    this.swingAngle = Math.sin(Date.now() / 1500) * 0.15; // Slow sway
+                }
             }
 
             draw(ctx) {
-                if (!this.active) return; 
+                if (!this.active && this.type !== 'rescuePod') return; 
 
                 ctx.save();
                 ctx.translate(this.x, this.y);
@@ -258,6 +308,114 @@
                     ctx.shadowBlur = 0;
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                } else if (this.type === 'rescuePod') {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; 
+                    ctx.fill();
+                    ctx.strokeStyle = '#22c55e';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(0, -5, 4, 0, Math.PI*2); 
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(0, 5, 5, 8, 0, 0, Math.PI*2); 
+                    ctx.fill();
+
+                } else if (this.type === 'frog') {
+                    // Poison Frog Visuals
+                    ctx.fillStyle = '#a3e635'; // Lime green
+                    ctx.beginPath();
+                    ctx.ellipse(0, 5, 12, 10, 0, 0, Math.PI*2); // Body
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(-6, -2, 4, 0, Math.PI*2); // Eye L
+                    ctx.arc(6, -2, 4, 0, Math.PI*2); // Eye R
+                    ctx.fill();
+                    ctx.fillStyle = '#000'; // Pupil
+                    ctx.beginPath();
+                    ctx.arc(-6, -2, 1.5, 0, Math.PI*2);
+                    ctx.arc(6, -2, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                    // Spots
+                    ctx.fillStyle = '#ef4444'; // Red poison spots
+                    ctx.beginPath();
+                    ctx.arc(0, 5, 3, 0, Math.PI*2);
+                    ctx.fill();
+
+                } else if (this.type === 'snake') {
+                    // Snake Visuals
+                    ctx.fillStyle = '#22c55e'; // Green
+                    ctx.beginPath();
+                    // Simple wavy body
+                    for(let i=0; i<30; i+=5) {
+                        ctx.arc(i, Math.sin(i + this.snakeWiggle)*2, 6, 0, Math.PI*2);
+                    }
+                    ctx.fill();
+                    // Head
+                    ctx.fillStyle = '#166534';
+                    ctx.beginPath();
+                    ctx.arc(-5, 0, 8, 0, Math.PI*2);
+                    ctx.fill();
+                    // Tongue
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, 0);
+                    ctx.lineTo(-20, 0);
+                    ctx.stroke();
+
+                } else if (this.type === 'sloth') {
+                    ctx.rotate(this.swingAngle);
+                    
+                    // The Vine holding the sloth
+                    ctx.strokeStyle = '#3f6212'; // Dark olive
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -600); // Goes way up
+                    ctx.stroke();
+
+                    // Sloth Body (Hanging upside down)
+                    ctx.fillStyle = '#78350f'; // Brown
+                    // Back legs holding on
+                    ctx.beginPath();
+                    ctx.arc(-10, -5, 8, 0, Math.PI*2);
+                    ctx.fill();
+                    // Front legs holding on
+                    ctx.beginPath();
+                    ctx.arc(10, -5, 8, 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    // Main Body
+                    ctx.beginPath();
+                    ctx.ellipse(0, 15, 20, 28, 0, 0, Math.PI*2);
+                    ctx.fill();
+
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(0, 45, 12, 0, Math.PI*2);
+                    ctx.fillStyle = '#92400e'; 
+                    ctx.fill();
+
+                    // Face
+                    ctx.fillStyle = '#fde68a'; // Cream face
+                    ctx.beginPath();
+                    ctx.ellipse(0, 48, 8, 6, 0, 0, Math.PI*2);
+                    ctx.fill();
+
+                    // Sleepy Eyes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-4, 48);
+                    ctx.lineTo(-2, 48);
+                    ctx.moveTo(2, 48);
+                    ctx.lineTo(4, 48);
                     ctx.stroke();
 
                 } else {
@@ -448,7 +606,7 @@
             loseRider(currentScore) {
                 this.hasRider = false;
                 this.lostRiderAt = currentScore;
-                this.invulnerableTimer = 120; // 2 seconds invulnerability
+                this.invulnerableTimer = 120; 
                 AudioSys.playEject();
             }
 
@@ -457,7 +615,7 @@
                 AudioSys.playRescue();
             }
 
-            draw(ctx) {
+            draw(ctx, isBonusLevel) {
                 if (this.spaghettified) return;
 
                 ctx.save();
@@ -471,7 +629,7 @@
                 // --- PURPLE CYBER-DINO ---
                 const dinoPurple = '#7c3aed'; 
                 const dinoLightPurple = '#a78bfa';
-                const cyberNeon = '#06b6d4'; 
+                const cyberNeon = isBonusLevel ? '#facc15' : '#06b6d4'; // Yellow in jungle, Cyan in space
 
                 // Jetpack
                 ctx.beginPath();
@@ -543,7 +701,7 @@
                      ctx.moveTo(-7, 12);
                      ctx.lineTo(-15, 25);
                      ctx.lineTo(0, 25);
-                     ctx.fillStyle = 'rgba(6, 182, 212, 0.8)';
+                     ctx.fillStyle = isBonusLevel ? '#fef08a' : 'rgba(6, 182, 212, 0.8)';
                      ctx.fill();
                 }
 
@@ -558,7 +716,7 @@
 
                 ctx.fillStyle = '#000000'; // Simple Black Silhouette
 
-                // -- Hair (Curly Mass) - Larger and more voluminous --
+                // -- Hair (Curly Mass) --
                 ctx.beginPath();
                 // Top volume
                 ctx.arc(rx - 2, ry - 5 + bounce, 7, 0, Math.PI * 2);
@@ -568,18 +726,17 @@
                 ctx.arc(rx, ry + 6 + bounce, 5.5, 0, Math.PI * 2);
                 ctx.fill();
 
-                // -- Body - Larger and more childlike proportions --
+                // -- Body --
                 ctx.beginPath();
-                // Shorter, wider body for a child
                 ctx.ellipse(rx + 2, ry + 14 + bounce, 7, 10, -0.3, 0, Math.PI * 2);
                 ctx.fill();
 
-                // -- Head - Larger relative to body for child proportions --
+                // -- Head --
                 ctx.beginPath();
                 ctx.arc(rx + 2, ry - 1 + bounce, 7, 0, Math.PI * 2);
                 ctx.fill();
 
-                // -- Arm (Holding on) - Larger --
+                // -- Arm --
                 ctx.beginPath();
                 ctx.ellipse(rx + 8, ry + 9 + bounce, 3, 8, 0.6, 0, Math.PI * 2);
                 ctx.fill();
@@ -615,6 +772,9 @@
                 this.hazards = [];
                 this.particles = [];
                 this.stars = [];
+                this.jungleTreesBack = [];
+                this.jungleTreesFront = [];
+                this.jungleClouds = [];
                 
                 this.isRunning = false;
                 this.score = 0;
@@ -623,6 +783,8 @@
                 this.lastTime = 0;
                 this.inputState = { holding: false, lastTap: 0 };
                 this.alertState = 0; 
+                this.rescueSpawned = false;
+                this.isBonusLevel = false;
                 
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
@@ -664,6 +826,7 @@
                 });
 
                 this.generateStars();
+                this.generateJungleBackground();
                 this.loop = this.loop.bind(this);
                 requestAnimationFrame(this.loop);
             }
@@ -674,6 +837,7 @@
                 this.canvas.width = this.width;
                 this.canvas.height = this.height;
                 this.generateStars();
+                this.generateJungleBackground();
             }
 
             generateStars() {
@@ -689,6 +853,44 @@
                 }
             }
 
+            generateJungleBackground() {
+                this.jungleTreesBack = [];
+                this.jungleTreesFront = [];
+                this.jungleClouds = [];
+
+                // Back trees (slower, darker)
+                for(let i=0; i<this.width/100; i++) {
+                    this.jungleTreesBack.push({
+                        x: Math.random() * this.width,
+                        y: this.height,
+                        width: 20 + Math.random() * 30,
+                        height: 300 + Math.random() * 400,
+                        color: '#022c22'
+                    });
+                }
+
+                // Front trees (faster, slightly lighter)
+                for(let i=0; i<this.width/200; i++) {
+                    this.jungleTreesFront.push({
+                        x: Math.random() * this.width,
+                        y: this.height,
+                        width: 30 + Math.random() * 40,
+                        height: 400 + Math.random() * 500,
+                        color: '#065f46'
+                    });
+                }
+
+                // Clouds
+                for(let i=0; i<8; i++) {
+                    this.jungleClouds.push({
+                        x: Math.random() * this.width,
+                        y: Math.random() * this.height * 0.4,
+                        radius: 40 + Math.random() * 60,
+                        speed: 0.1 + Math.random() * 0.3
+                    });
+                }
+            }
+
             startGame() {
                 this.dino = new Dino(100, 0);
                 this.dino.vel.x = 10; 
@@ -700,6 +902,7 @@
                 this.score = 0;
                 this.isRunning = true;
                 this.alertState = 0;
+                this.isBonusLevel = false;
                 
                 this.uiSpaceAlert.classList.add('hidden');
                 if (this.uiRider) {
@@ -715,11 +918,41 @@
                 }, 500);
             }
 
+            startBonusLevel() {
+                this.isBonusLevel = true;
+                this.dino = new Dino(100, 0);
+                this.dino.vel.x = 10;
+                this.dino.vel.y = -5;
+                
+                this.anchors = [];
+                this.hazards = [];
+                this.score = 0; // Reset score for bonus? Or keep accumulating? Let's reset for fresh run
+                this.isRunning = true;
+                
+                // Clear UI
+                this.uiSpaceAlert.classList.add('hidden');
+                this.uiZone.innerText = "RAINFOREST";
+                this.uiZone.className = "text-xs text-yellow-400 mt-1 uppercase tracking-widest font-bold";
+                
+                this.generateLevel(0);
+                this.generateJungleBackground();
+                this.triggerAlert("BONUS LEVEL", "WELCOME TO THE JUNGLE", "text-yellow-400", "jungle-text-shadow");
+                AudioSys.playJungleEnter();
+            }
+
             gameOver(reason) {
+                // Check for Bonus Level Trigger
+                if (!this.isBonusLevel && this.score <= CONFIG.bonusLevelThreshold && reason !== 'spaghettified') {
+                    // Fall into Jungle
+                    this.startBonusLevel();
+                    return;
+                }
+
                 this.isRunning = false;
                 AudioSys.playCrash();
                 
-                if (this.score > this.highScore) {
+                // Only update high score if main game
+                if (!this.isBonusLevel && this.score > this.highScore) {
                     this.highScore = this.score;
                     localStorage.setItem('space-dino-hs', this.highScore);
                     this.uiBest.innerText = Math.floor(this.highScore);
@@ -728,6 +961,7 @@
                 let reasonText = "SIGNAL LOST: VOID";
                 if(reason === 'crash') reasonText = "HULL BREACH: COLLISION";
                 if(reason === 'spaghettified') reasonText = "STATUS: SPAGHETTIFIED";
+                if(this.isBonusLevel) reasonText = "JUNGLE RUN ENDED";
 
                 document.getElementById('death-reason').innerText = reasonText;
                 document.getElementById('final-score').innerText = `DISTANCE: ${Math.floor(this.score)}m`;
@@ -756,24 +990,47 @@
 
                         this.anchors.push({ x: currentX, y: y, active: true });
 
-                        if (currentX > CONFIG.spaceThreshold) {
-                            if (Math.random() < 0.2) {
+                        if (this.isBonusLevel) {
+                            // --- JUNGLE HAZARDS ---
+                            // Frogs
+                            if (Math.random() < 0.15) {
                                 const hazX = currentX + spacing/2;
-                                const hazY = y + (Math.random() - 0.5) * 300;
-                                this.hazards.push(new Hazard(hazX, hazY, 'asteroid'));
+                                const hazY = y + 100 + (Math.random() * 100); 
+                                this.hazards.push(new Hazard(hazX, hazY, 'frog'));
                             }
-                            if (Math.random() < 0.02) {
-                                this.hazards.push(new Hazard(currentX + 800, y - 200, 'comet'));
+                            // Snakes
+                            if (Math.random() < 0.1) {
+                                this.hazards.push(new Hazard(currentX + 500, y - 50 + (Math.random()*100), 'snake'));
                             }
-                        }
-                        if (currentX > CONFIG.starThreshold) {
-                            if (Math.random() < 0.04) { 
-                                this.hazards.push(new Hazard(currentX + 1000, y - 400, 'shootingStar'));
+                            // Sloths
+                            if (this.score > CONFIG.slothThreshold && Math.random() < 0.05) {
+                                this.hazards.push(new Hazard(currentX + 500, y - 100, 'sloth'));
                             }
-                        }
-                        if (currentX > CONFIG.blackHoleThreshold) {
-                            if (Math.random() < 0.01) { 
-                                this.hazards.push(new Hazard(currentX + 600, y + (Math.random()-0.5)*100, 'blackHole'));
+                        } else {
+                            // --- SPACE HAZARDS ---
+                            if (!this.dino.hasRider && (this.score - this.dino.lostRiderAt >= CONFIG.rescueDistance)) {
+                                // Handled by Auto-Rescue logic now, but kept logic structure if needed
+                            }
+
+                            if (currentX > CONFIG.spaceThreshold) {
+                                if (Math.random() < 0.2) {
+                                    const hazX = currentX + spacing/2;
+                                    const hazY = y + (Math.random() - 0.5) * 300;
+                                    this.hazards.push(new Hazard(hazX, hazY, 'asteroid'));
+                                }
+                                if (Math.random() < 0.02) {
+                                    this.hazards.push(new Hazard(currentX + 800, y - 200, 'comet'));
+                                }
+                            }
+                            if (currentX > CONFIG.starThreshold) {
+                                if (Math.random() < 0.04) { 
+                                    this.hazards.push(new Hazard(currentX + 1000, y - 400, 'shootingStar'));
+                                }
+                            }
+                            if (currentX > CONFIG.blackHoleThreshold) {
+                                if (Math.random() < 0.01) { 
+                                    this.hazards.push(new Hazard(currentX + 600, y + (Math.random()-0.5)*100, 'blackHole'));
+                                }
                             }
                         }
                     }
@@ -802,7 +1059,13 @@
                             return;
                         }
                     } else {
-                        if (dist < this.dino.radius + h.radius) {
+                        // General collision radius
+                        let hitRadius = h.radius;
+                        if(h.type === 'frog') hitRadius = 15;
+                        if(h.type === 'snake') hitRadius = 12;
+                        if(h.type === 'sloth') hitRadius = 30;
+
+                        if (dist < this.dino.radius + hitRadius) {
                             if (this.dino.invulnerableTimer > 0) return; 
 
                             if (this.dino.hasRider) {
@@ -859,35 +1122,38 @@
                 const speed = Math.sqrt(this.dino.vel.x**2 + this.dino.vel.y**2) * 3.6; 
                 if (this.uiSpeed) this.uiSpeed.innerText = `${Math.floor(speed)} km/h`;
                 
-                if (dist >= 1000 && dist < 2000) {
-                    if (this.uiZone) {
-                        this.uiZone.innerText = "ASTEROID BELT";
-                        this.uiZone.className = "text-xs text-red-500 mt-1 uppercase tracking-widest font-bold";
-                    }
-                    if (this.alertState === 0) {
-                        this.alertState = 1;
-                        this.triggerAlert("ASTEROID BELT", "AVOID DEBRIS", "text-red-500", "hazard-text-shadow");
-                        AudioSys.playSpaceEnter();
-                    }
-                } else if (dist >= 2000 && dist < 5000) {
-                    if (this.uiZone) {
-                        this.uiZone.innerText = "METEOR SHOWER";
-                        this.uiZone.className = "text-xs text-white mt-1 uppercase tracking-widest font-bold";
-                    }
-                    if (this.alertState === 1) {
-                        this.alertState = 2;
-                        this.triggerAlert("METEOR SHOWER", "EXTREME VELOCITY HAZARDS", "text-white", "star-text-shadow");
-                        AudioSys.playSpaceEnter();
-                    }
-                } else if (dist >= 5000) {
-                    if (this.uiZone) {
-                        this.uiZone.innerText = "EVENT HORIZON";
-                        this.uiZone.className = "text-xs text-purple-400 mt-1 uppercase tracking-widest font-bold";
-                    }
-                    if (this.alertState === 2) {
-                        this.alertState = 3;
-                        AudioSys.playVoidHum();
-                        this.triggerAlert("SINGULARITY DETECTED", "GRAVITY WELLS ACTIVE", "text-purple-500", "void-text-shadow");
+                // --- ZONE ALERTS (Space Only) ---
+                if (!this.isBonusLevel) {
+                    if (dist >= 1000 && dist < 2000) {
+                        if (this.uiZone) {
+                            this.uiZone.innerText = "ASTEROID BELT";
+                            this.uiZone.className = "text-xs text-red-500 mt-1 uppercase tracking-widest font-bold";
+                        }
+                        if (this.alertState === 0) {
+                            this.alertState = 1;
+                            this.triggerAlert("ASTEROID BELT", "AVOID DEBRIS", "text-red-500", "hazard-text-shadow");
+                            AudioSys.playSpaceEnter();
+                        }
+                    } else if (dist >= 2000 && dist < 5000) {
+                        if (this.uiZone) {
+                            this.uiZone.innerText = "METEOR SHOWER";
+                            this.uiZone.className = "text-xs text-white mt-1 uppercase tracking-widest font-bold";
+                        }
+                        if (this.alertState === 1) {
+                            this.alertState = 2;
+                            this.triggerAlert("METEOR SHOWER", "EXTREME VELOCITY HAZARDS", "text-white", "star-text-shadow");
+                            AudioSys.playSpaceEnter();
+                        }
+                    } else if (dist >= 5000) {
+                        if (this.uiZone) {
+                            this.uiZone.innerText = "EVENT HORIZON";
+                            this.uiZone.className = "text-xs text-purple-400 mt-1 uppercase tracking-widest font-bold";
+                        }
+                        if (this.alertState === 2) {
+                            this.alertState = 3;
+                            AudioSys.playVoidHum();
+                            this.triggerAlert("SINGULARITY DETECTED", "GRAVITY WELLS ACTIVE", "text-purple-500", "void-text-shadow");
+                        }
                     }
                 }
 
@@ -896,91 +1162,176 @@
 
             draw() {
                 const dist = this.dino ? this.dino.pos.x : 0;
-                const transitionStart = 8000;
-                const transitionEnd = 12000;
-                let t = (dist - transitionStart) / (transitionEnd - transitionStart);
-                t = Math.max(0, Math.min(1, t));
+                
+                if (this.isBonusLevel) {
+                    // --- JUNGLE BACKGROUND (PARALLAX) ---
+                    const grad = this.ctx.createLinearGradient(0, 0, 0, this.height);
+                    grad.addColorStop(0, '#0f766e'); // Teal-ish sky
+                    grad.addColorStop(1, '#064e3b'); // Dark Jungle Green
+                    this.ctx.fillStyle = grad;
+                    this.ctx.fillRect(0, 0, this.width, this.height);
 
-                const r = Math.floor(15 * (1-t));
-                const g = Math.floor(23 * (1-t));
-                const b = Math.floor(42 * (1-t));
-                this.ctx.fillStyle = `rgb(${r},${g},${b})`;
-                this.ctx.fillRect(0, 0, this.width, this.height);
+                    // Clouds (parallax)
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.jungleClouds.forEach(cloud => {
+                        cloud.x -= cloud.speed;
+                        if(cloud.x + cloud.radius < 0) cloud.x = this.width + cloud.radius;
+                        const x = (cloud.x - this.camera.x * 0.05) % (this.width + cloud.radius * 2);
+                        let finalX = x;
+                        if (finalX < -cloud.radius) finalX += (this.width + cloud.radius * 2);
 
-                if (this.camera.y + this.height > 500) {
-                    this.ctx.strokeStyle = `rgba(6, 182, 212, ${0.1 * (1-t)})`;
-                    this.ctx.lineWidth = 1;
-                    const startX = Math.floor(this.camera.x / 50) * 50;
-                    for(let x = startX; x < this.camera.x + this.width; x += 50) {
                         this.ctx.beginPath();
-                        this.ctx.moveTo(x - this.camera.x, 600 - this.camera.y);
-                        this.ctx.lineTo(x - this.camera.x, 800 - this.camera.y);
-                        this.ctx.stroke();
-                    }
-                }
+                        this.ctx.arc(finalX, cloud.y, cloud.radius, 0, Math.PI*2);
+                        this.ctx.arc(finalX + cloud.radius*0.6, cloud.y - cloud.radius*0.2, cloud.radius*0.7, 0, Math.PI*2);
+                        this.ctx.arc(finalX - cloud.radius*0.6, cloud.y - cloud.radius*0.2, cloud.radius*0.7, 0, Math.PI*2);
+                        this.ctx.fill();
+                    });
 
-                this.ctx.fillStyle = '#FFF';
-                this.stars.forEach(star => {
-                    const px = (star.x - this.camera.x * (0.1 * star.depth)) % this.width;
-                    const py = (star.y - this.camera.y * (0.1 * star.depth)) % this.height;
-                    const finalX = px < 0 ? px + this.width : px;
-                    const finalY = py < 0 ? py + this.height : py;
-                    this.ctx.globalAlpha = star.alpha;
-                    this.ctx.beginPath();
-                    this.ctx.arc(finalX, finalY, star.size, 0, Math.PI*2);
-                    this.ctx.fill();
-                });
-                this.ctx.globalAlpha = 1.0;
+                    // Back Trees (parallax)
+                    this.ctx.fillStyle = '#022c22';
+                    this.jungleTreesBack.forEach(tree => {
+                        const x = (tree.x - this.camera.x * 0.1) % (this.width + tree.width*2);
+                        let finalX = x;
+                        if (finalX < -tree.width*2) finalX += (this.width + tree.width*2);
+                        
+                        // Trunk
+                        this.ctx.fillRect(finalX, tree.y - tree.height, tree.width, tree.height);
+                        // Foliage
+                        this.ctx.beginPath();
+                        this.ctx.arc(finalX + tree.width/2, tree.y - tree.height, tree.width*1.5, 0, Math.PI*2);
+                        this.ctx.fill();
+                    });
+
+                    // Front Trees (parallax)
+                    this.ctx.fillStyle = '#065f46';
+                    this.jungleTreesFront.forEach(tree => {
+                        const x = (tree.x - this.camera.x * 0.2) % (this.width + tree.width*2);
+                        let finalX = x;
+                        if (finalX < -tree.width*2) finalX += (this.width + tree.width*2);
+
+                        // Trunk
+                        this.ctx.fillRect(finalX, tree.y - tree.height, tree.width, tree.height);
+                        // Foliage
+                        this.ctx.beginPath();
+                        this.ctx.arc(finalX + tree.width/2, tree.y - tree.height, tree.width*1.5, 0, Math.PI*2);
+                        this.ctx.arc(finalX + tree.width/2 - tree.width, tree.y - tree.height + tree.width, tree.width, 0, Math.PI*2);
+                        this.ctx.arc(finalX + tree.width/2 + tree.width, tree.y - tree.height + tree.width, tree.width, 0, Math.PI*2);
+                        this.ctx.fill();
+                    });
+                    
+                    // Jungle Floor Fog
+                    this.ctx.fillStyle = 'rgba(6, 95, 70, 0.5)';
+                    this.ctx.fillRect(0, this.height - 150, this.width, 150);
+
+                } else {
+                    // --- SPACE BACKGROUND ---
+                    const transitionStart = 8000;
+                    const transitionEnd = 12000;
+                    let t = (dist - transitionStart) / (transitionEnd - transitionStart);
+                    t = Math.max(0, Math.min(1, t));
+
+                    const r = Math.floor(15 * (1-t));
+                    const g = Math.floor(23 * (1-t));
+                    const b = Math.floor(42 * (1-t));
+                    this.ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    this.ctx.fillRect(0, 0, this.width, this.height);
+
+                    // Stars (Space Only)
+                    this.ctx.fillStyle = '#FFF';
+                    this.stars.forEach(star => {
+                        const px = (star.x - this.camera.x * (0.1 * star.depth)) % this.width;
+                        const py = (star.y - this.camera.y * (0.1 * star.depth)) % this.height;
+                        const finalX = px < 0 ? px + this.width : px;
+                        const finalY = py < 0 ? py + this.height : py;
+                        this.ctx.globalAlpha = star.alpha;
+                        this.ctx.beginPath();
+                        this.ctx.arc(finalX, finalY, star.size, 0, Math.PI*2);
+                        this.ctx.fill();
+                    });
+                    this.ctx.globalAlpha = 1.0;
+                }
 
                 this.ctx.save();
                 this.ctx.translate(-this.camera.x, -this.camera.y);
 
                 this.hazards.sort((a,b) => {
-                    const order = { 'blackHole': 0, 'asteroid': 1, 'comet': 2, 'shootingStar': 3 };
+                    const order = { 'blackHole': 0, 'rescuePod': 1, 'asteroid': 2, 'comet': 3, 'shootingStar': 4, 'snake': 3, 'frog': 4, 'sloth': 2 };
                     return order[a.type] - order[b.type];
                 });
                 this.hazards.forEach(h => h.draw(this.ctx));
 
+                // Draw Tether / Vine
                 if (this.dino && this.dino.grapplePoint) {
-                    this.ctx.strokeStyle = '#06b6d4'; 
-                    this.ctx.lineWidth = 2;
-                    this.ctx.shadowBlur = 10;
-                    this.ctx.shadowColor = '#06b6d4';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(this.dino.pos.x, this.dino.pos.y);
-                    this.ctx.lineTo(this.dino.grapplePoint.x, this.dino.grapplePoint.y);
-                    this.ctx.stroke();
-                    this.ctx.shadowBlur = 0; 
-                    this.ctx.fillStyle = '#fff';
-                    this.ctx.beginPath();
-                    this.ctx.arc(this.dino.grapplePoint.x, this.dino.grapplePoint.y, 6, 0, Math.PI*2);
-                    this.ctx.fill();
+                    if (this.isBonusLevel) {
+                        // VINE
+                        this.ctx.strokeStyle = '#65a30d'; // Lime Green
+                        this.ctx.lineWidth = 3;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.dino.pos.x, this.dino.pos.y);
+                        // Beizer curve for organic vine look
+                        const midX = (this.dino.pos.x + this.dino.grapplePoint.x) / 2;
+                        const midY = (this.dino.pos.y + this.dino.grapplePoint.y) / 2 + 20; // Hang a bit
+                        this.ctx.quadraticCurveTo(midX, midY, this.dino.grapplePoint.x, this.dino.grapplePoint.y);
+                        this.ctx.stroke();
+                    } else {
+                        // LASER
+                        this.ctx.strokeStyle = '#06b6d4'; 
+                        this.ctx.lineWidth = 2;
+                        this.ctx.shadowBlur = 10;
+                        this.ctx.shadowColor = '#06b6d4';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.dino.pos.x, this.dino.pos.y);
+                        this.ctx.lineTo(this.dino.grapplePoint.x, this.dino.grapplePoint.y);
+                        this.ctx.stroke();
+                        this.ctx.shadowBlur = 0; 
+                        this.ctx.fillStyle = '#fff';
+                        this.ctx.beginPath();
+                        this.ctx.arc(this.dino.grapplePoint.x, this.dino.grapplePoint.y, 6, 0, Math.PI*2);
+                        this.ctx.fill();
+                    }
                 }
 
+                // Draw Anchors
                 this.anchors.forEach(a => {
-                    const glowSize = 10 + Math.sin(Date.now()/200)*3;
-                    const grad = this.ctx.createRadialGradient(a.x, a.y, 2, a.x, a.y, glowSize);
-                    grad.addColorStop(0, '#22d3ee'); 
-                    grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
-                    this.ctx.fillStyle = grad;
-                    this.ctx.beginPath();
-                    this.ctx.arc(a.x, a.y, glowSize, 0, Math.PI*2);
-                    this.ctx.fill();
-                    this.ctx.fillStyle = '#cffafe';
-                    this.ctx.beginPath();
-                    this.ctx.arc(a.x, a.y, 3, 0, Math.PI*2);
-                    this.ctx.fill();
+                    if (this.isBonusLevel) {
+                        // JUNGLE FLOWER ANCHOR
+                        this.ctx.fillStyle = '#f472b6'; // Pink
+                        this.ctx.beginPath();
+                        this.ctx.arc(a.x, a.y, 8, 0, Math.PI*2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = '#fef08a'; // Yellow center
+                        this.ctx.beginPath();
+                        this.ctx.arc(a.x, a.y, 4, 0, Math.PI*2);
+                        this.ctx.fill();
+                    } else {
+                        // SPACE ORB
+                        const glowSize = 10 + Math.sin(Date.now()/200)*3;
+                        const grad = this.ctx.createRadialGradient(a.x, a.y, 2, a.x, a.y, glowSize);
+                        grad.addColorStop(0, '#22d3ee'); 
+                        grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+                        this.ctx.fillStyle = grad;
+                        this.ctx.beginPath();
+                        this.ctx.arc(a.x, a.y, glowSize, 0, Math.PI*2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = '#cffafe';
+                        this.ctx.beginPath();
+                        this.ctx.arc(a.x, a.y, 3, 0, Math.PI*2);
+                        this.ctx.fill();
+                    }
                 });
 
-                if (this.dino) this.dino.draw(this.ctx);
+                if (this.dino) this.dino.draw(this.ctx, this.isBonusLevel);
 
-                const lavaY = 600;
-                if (this.camera.y + this.height > lavaY && t < 1) {
-                   const grad = this.ctx.createLinearGradient(0, lavaY, 0, lavaY + 200);
-                   grad.addColorStop(0, `rgba(15, 23, 42, ${1-t})`); 
-                   grad.addColorStop(1, `rgba(6, 182, 212, ${0.2 * (1-t)})`);
-                   this.ctx.fillStyle = grad;
-                   this.ctx.fillRect(this.camera.x, lavaY, this.width, 200);
+                // Lava/Void Floor (Space Only)
+                if (!this.isBonusLevel) {
+                    const lavaY = 600;
+                    if (this.camera.y + this.height > lavaY) {
+                       const grad = this.ctx.createLinearGradient(0, lavaY, 0, lavaY + 200);
+                       grad.addColorStop(0, `rgba(15, 23, 42, 1)`); 
+                       grad.addColorStop(1, `rgba(6, 182, 212, 0.2)`);
+                       this.ctx.fillStyle = grad;
+                       this.ctx.fillRect(this.camera.x, lavaY, this.width, 200);
+                    }
                 }
 
                 this.ctx.restore();
