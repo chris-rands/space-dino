@@ -4,7 +4,7 @@ A physics-based space grappling game featuring a cyber-dinosaur and co-pilot nav
 
 ## Game Overview
 
-Control a purple cyber-dino with a curly-haired co-pilot as you swing through space using a grappling hook mechanic. Avoid asteroids, comets, shooting stars, and black holes while traveling as far as possible through four distinct zones. Protect your co-pilot - lose them and you'll need to survive until a rescue pod arrives!
+Control a purple cyber-dino with a curly-haired co-pilot as you swing through space using a grappling hook mechanic. Avoid asteroids, comets, shooting stars, and black holes while traveling as far as possible through four distinct zones. Protect your co-pilot - lose them and you'll need to survive 300m for automatic rescue!
 
 ## How to Play
 
@@ -16,7 +16,7 @@ Control a purple cyber-dino with a curly-haired co-pilot as you swing through sp
 
 Your cyber-dino carries a co-pilot who acts as a shield:
 - **First hit**: Co-pilot is ejected, you gain temporary invulnerability (2 seconds)
-- **Rescue pods** spawn after losing your co-pilot - collect one to restore your shield
+- **Auto-rescue**: Survive 300m without your co-pilot and they automatically return to restore your shield
 - **Second hit** (without co-pilot): Game over
 
 ## Zones & Hazards
@@ -32,11 +32,10 @@ Your cyber-dino carries a co-pilot who acts as a shield:
 - **Comets**: Slow-moving projectiles with trails (spawns from 1000m+)
 - **Shooting Stars**: Fast white streaks (spawns from 2000m+)
 - **Black Holes**: Gravitational wells that pull you in; direct contact = spaghettification (spawns from 5000m+)
-- **Rescue Pods**: Green beacons that restore your co-pilot (spawns after losing co-pilot)
 
 ## Features
 
-- **Two-hit system** with co-pilot shield and rescue mechanics
+- **Two-hit system** with co-pilot shield and auto-rescue feature
 - **Realistic rope physics** and momentum-based movement
 - **Black hole gravity wells** with slingshot mechanics and spaghettification
 - **Progressive difficulty** with four distinct zones
@@ -65,5 +64,5 @@ Simply open `index.html` in any modern web browser. No build process or dependen
 - **Time your releases**: Let go of the rope at the right angle for maximum forward momentum
 - **Use the dash wisely**: The 2-second cooldown means you should save it for emergencies
 - **Black hole strategy**: Gravity wells can slingshot you forward if you approach from the side
-- **Watch for rescue pods**: They appear after traveling ~300m past where you lost your co-pilot
+- **Auto-rescue mechanic**: After losing your co-pilot, survive 300m to automatically get them back and restore your shield
 - **Invulnerability window**: After losing your co-pilot, you have 2 seconds to escape danger

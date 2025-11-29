@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Dino v4.2</title>
+    <title>Space Dino v4.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
@@ -97,8 +97,9 @@
 
     <script>
         /**
-         * SPACE DINO v4.2
-         * - Updated Rider Visuals: Now a distinct curly-haired silhouette with outline.
+         * SPACE DINO v4.3
+         * - Auto-Rescue: Pilot returns automatically after surviving 300m.
+         * - Removed Rescue Pod item spawning.
          */
 
         const CONFIG = {
@@ -113,7 +114,7 @@
             spaceThreshold: 10000, 
             starThreshold: 20000,
             blackHoleThreshold: 50000,
-            rescueDistance: 3000, 
+            rescueDistance: 300, // Meters to survive for auto-return
         };
 
         const AudioSys = {
@@ -206,10 +207,6 @@
                     this.swirlAngle = 0;
                     this.strength = 1.8; 
                 }
-
-                if (type === 'rescuePod') {
-                    this.radius = 25;
-                }
             }
 
             update() {
@@ -229,14 +226,10 @@
                 if (this.type === 'blackHole') {
                     this.swirlAngle += 0.1;
                 }
-                
-                if (this.type === 'rescuePod') {
-                    this.y += Math.sin(Date.now() / 300) * 0.5; // Hover
-                }
             }
 
             draw(ctx) {
-                if (!this.active && this.type !== 'rescuePod') return; 
+                if (!this.active) return; 
 
                 ctx.save();
                 ctx.translate(this.x, this.y);
@@ -266,23 +259,6 @@
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 1;
                     ctx.stroke();
-
-                } else if (this.type === 'rescuePod') {
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; 
-                    ctx.fill();
-                    ctx.strokeStyle = '#22c55e';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    ctx.fillStyle = '#fff';
-                    ctx.beginPath();
-                    ctx.arc(0, -5, 4, 0, Math.PI*2); 
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.ellipse(0, 5, 5, 8, 0, 0, Math.PI*2); 
-                    ctx.fill();
 
                 } else {
                     ctx.rotate(this.angle);
@@ -647,7 +623,6 @@
                 this.lastTime = 0;
                 this.inputState = { holding: false, lastTap: 0 };
                 this.alertState = 0; 
-                this.rescueSpawned = false;
                 
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
@@ -725,7 +700,6 @@
                 this.score = 0;
                 this.isRunning = true;
                 this.alertState = 0;
-                this.rescueSpawned = false;
                 
                 this.uiSpaceAlert.classList.add('hidden');
                 if (this.uiRider) {
@@ -782,13 +756,6 @@
 
                         this.anchors.push({ x: currentX, y: y, active: true });
 
-                        if (!this.dino.hasRider && !this.rescueSpawned) {
-                            if (this.score - this.dino.lostRiderAt > CONFIG.rescueDistance / 10) {
-                                this.hazards.push(new Hazard(currentX + 200, y - 50, 'rescuePod'));
-                                this.rescueSpawned = true; 
-                            }
-                        }
-
                         if (currentX > CONFIG.spaceThreshold) {
                             if (Math.random() < 0.2) {
                                 const hazX = currentX + spacing/2;
@@ -834,18 +801,6 @@
                             this.gameOver('spaghettified');
                             return;
                         }
-                    } else if (h.type === 'rescuePod') {
-                        if (dist < this.dino.radius + h.radius + 10) {
-                            this.dino.recoverRider();
-                            this.hazards.splice(i, 1);
-                            this.rescueSpawned = false;
-                            
-                            if (this.uiRider) {
-                                this.uiRider.innerText = "CO-PILOT: ACTIVE";
-                                this.uiRider.className = "text-green-400 text-xs font-bold tracking-widest mt-1";
-                            }
-                            this.triggerAlert("PILOT RECOVERED", "SHIELDS RESTORED", "text-green-500", "rescue-text-shadow");
-                        }
                     } else {
                         if (dist < this.dino.radius + h.radius) {
                             if (this.dino.invulnerableTimer > 0) return; 
@@ -886,6 +841,16 @@
                 
                 this.hazards.forEach(h => h.update());
                 this.checkCollisions();
+
+                // Auto-Rescue Logic
+                if (!this.dino.hasRider && (this.score - this.dino.lostRiderAt >= CONFIG.rescueDistance)) {
+                    this.dino.recoverRider();
+                    if (this.uiRider) {
+                        this.uiRider.innerText = "CO-PILOT: ACTIVE";
+                        this.uiRider.className = "text-green-400 text-xs font-bold tracking-widest mt-1";
+                    }
+                    this.triggerAlert("PILOT RETURNED", "SHIELDS RESTORED", "text-green-500", "rescue-text-shadow");
+                }
 
                 const dist = Math.floor(this.dino.pos.x / 10);
                 if (dist > this.score) this.score = dist;
@@ -971,7 +936,7 @@
                 this.ctx.translate(-this.camera.x, -this.camera.y);
 
                 this.hazards.sort((a,b) => {
-                    const order = { 'blackHole': 0, 'rescuePod': 1, 'asteroid': 2, 'comet': 3, 'shootingStar': 4 };
+                    const order = { 'blackHole': 0, 'asteroid': 1, 'comet': 2, 'shootingStar': 3 };
                     return order[a.type] - order[b.type];
                 });
                 this.hazards.forEach(h => h.draw(this.ctx));
